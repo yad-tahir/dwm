@@ -128,6 +128,7 @@ static Key keys[] = {
 	{ MODKEY,                       XK_l,      togglelocked,        {0} },
 	{ MODKEY,                       XK_x,      toggleskip,          {0} },
 	{ MODKEY|ShiftMask,             XK_x,      unskipall,           {0} },
+	{ MODKEY,                       XK_u,      togglenourgent,      {0} },
 	{ MODKEY,                       XK_minus,  tocenter,            {0} },
 
 	{ MODKEY,                       XK_0,      view,                {.ui = ~0 } },

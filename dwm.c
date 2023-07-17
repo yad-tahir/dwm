@@ -63,6 +63,7 @@
 #define ISLOCKED(C)             ((C->islocked))
 #define ISSKIP(C)				((C->skip))
 #define ISSTICKY(M,C)           ((C->pertag->issticky[M->pertag->curtag]))
+#define NOURGENT(M)             ((M->nourgent))
 
 /* enums */
 enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
@@ -154,6 +155,7 @@ struct Monitor {
 	const Layout *lt[2];
 	Pertag *pertag;
 	unsigned int stickies; /* number of sticky clients */
+	int nourgent;
 };
 
 typedef struct {
@@ -258,6 +260,7 @@ static void togglelast(const Arg *arg);
 static void togglelocked(const Arg *arg);
 static void toggleskip(const Arg *arg);
 static void toggletag(const Arg *arg);
+static void togglenourgent(const Arg *arg);
 static void toggleview(const Arg *arg);
 static void togglewin(const Arg *arg);
 static void unfocus(Client *c, int setfocus);
@@ -629,7 +632,7 @@ clientmessage(XEvent *e)
 		|| cme->data.l[2] == netatom[NetWMFullscreen])
 			setfullscreen(c, (cme->data.l[0] == 1 /* _NET_WM_STATE_ADD */
 				|| cme->data.l[0] == 2 /* _NET_WM_STATE_TOGGLE */));
-	} else if (cme->message_type == netatom[NetActiveWindow]) {
+	} else if (cme->message_type == netatom[NetActiveWindow] && !NOURGENT(c->mon)) {
 		if (c != selmon->sel && !c->isurgent) {
 			seturgent(c, 1);
 			unfocus(selmon->sel, 0);
@@ -942,12 +945,20 @@ drawbar(Monitor *m)
 		m->bsn = n;
 	}
 
+	// Draw general flags
+	if ((m->ww - tw - x) > bh && NOURGENT(m)) {
+		w = TEXTW("NO URGENT");
+		drw_setscheme(drw, scheme[Color6]);
+		x = drw_text(drw, x, 0, w, bh, lrpad / 2, "NO URGENT", 0);
+		x += lrpad/2;
+	}
+
 	if (m->sel == NULL) {
 		drw_map(drw, m->barwin, 0, 0, m->ww, bh);
 		return;
 	}
 
-	// Draw Flags
+	// Draw window flags
 	if ((m->ww - tw - x) > bh && ISLOCKED(m->sel)) {
 		w = TEXTW("LOCKED");
 		drw_setscheme(drw, scheme[Color5]);
@@ -2417,6 +2428,15 @@ toggletag(const Arg *arg)
 		focus(NULL);
 		arrange(selmon);
 	}
+}
+
+void
+togglenourgent(const Arg *arg)
+{
+	if (!selmon)
+		return;
+	selmon->nourgent = selmon->nourgent? 0: 1;
+	drawbar(selmon);
 }
 
 void
