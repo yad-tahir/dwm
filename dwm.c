@@ -995,7 +995,7 @@ drawbar(Monitor *m)
 	}
 
 	// Draw title in the remaining width
-	if ((w = m->ww - tw - x) > bh && m->sel->name) {
+	if ((w = m->ww - tw - x) > bh) {
 		// Check if there is a need to have a progress indicator. We do that by
 		// checking whether is a percentage expression, e.g. 55%, in the title.
 		regmatch_t matches[2];
