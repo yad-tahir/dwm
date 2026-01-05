@@ -535,7 +535,10 @@ buttonpress(XEvent *e)
 				  && ev->x < (selmon->bsx + selmon->bsn* (stackbar_width + stackbar_padding))) {
 			click = ClkStackBar;
 			int y = selmon->bsx;
-			for (c = nexttiled(selmon->clients); c; c = nexttiled(c->next)) {
+
+			for (c = selmon->clients; c ; c = c->next) {
+				if (!ISVISIBLE(c) || HIDDEN(c))
+					continue;
 				if (ev->x >= y && ev->x < y + stackbar_width + stackbar_padding) {
 					arg.v = c;
 					break;
