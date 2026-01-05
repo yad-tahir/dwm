@@ -210,7 +210,6 @@ static Atom getcardinalprop(Client *c, Atom prop);
 static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
 static void grabbuttons(Client *c, int focused);
 static void grabkeys(void);
-static void hide(Client *c);
 static void incnmaster(const Arg *arg);
 static void inplacerotate(const Arg *arg);
 static void insertclient(Client *item, Client *insertItem, int after);
@@ -246,7 +245,6 @@ static void setmfacts(const Arg *arg);
 static void setnmasters(const Arg *arg);
 static void setup(void);
 static void seturgent(Client *c, int urg);
-static void show(Client *c);
 static void showhide(Client *c);
 static void spawn(const Arg *arg);
 static void stickyClient(const Arg *arg);
@@ -262,7 +260,6 @@ static void toggleskip(const Arg *arg);
 static void toggletag(const Arg *arg);
 static void togglenourgent(const Arg *arg);
 static void toggleview(const Arg *arg);
-static void togglewin(const Arg *arg);
 static void unfocus(Client *c, int setfocus);
 static void unmanage(Client *c, int destroyed);
 static void unmapnotify(XEvent *e);
@@ -1438,32 +1435,6 @@ grabkeys(void)
 }
 
 void
-hide(Client *c)
-{
-	if (!c || HIDDEN(c))
-		return;
-
-	Window w = c->win;
-	static XWindowAttributes ra, ca;
-
-	// more or less taken directly from blackbox's hide() function
-	XGrabServer(dpy);
-	XGetWindowAttributes(dpy, root, &ra);
-	XGetWindowAttributes(dpy, w, &ca);
-	// prevent UnmapNotify events
-	XSelectInput(dpy, root, ra.your_event_mask & ~SubstructureNotifyMask);
-	XSelectInput(dpy, w, ca.your_event_mask & ~StructureNotifyMask);
-	XUnmapWindow(dpy, w);
-	setclientstate(c, IconicState);
-	XSelectInput(dpy, root, ra.your_event_mask);
-	XSelectInput(dpy, w, ca.your_event_mask);
-	XUngrabServer(dpy);
-
-	focus(c->snext);
-	arrange(c->mon);
-}
-
-void
 incnmaster(const Arg *arg)
 {
 	selmon->nmaster = selmon->pertag->nmasters[selmon->pertag->curtag] = MAX(selmon->nmaster + arg->i, 0);
@@ -2337,17 +2308,6 @@ seturgent(Client *c, int urg)
 }
 
 void
-show(Client *c)
-{
-	if (!c || !HIDDEN(c))
-		return;
-
-	XMapWindow(dpy, c->win);
-	setclientstate(c, NormalState);
-	arrange(c->mon);
-}
-
-void
 showhide(Client *c)
 {
 	if (!c)
@@ -2556,19 +2516,6 @@ toggleview(const Arg *arg)
 
 		focus(NULL);
 		arrange(selmon);
-	}
-}
-
-void
-togglewin(const Arg *arg)
-{
-	Client *c = (Client*)arg->v;
-	if (c == selmon->sel)
-		hide(c);
-	else {
-		if (HIDDEN(c))
-			show(c);
-		focus(c);
 	}
 }
 
