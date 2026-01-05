@@ -844,15 +844,22 @@ dirtomon(int dir)
 		for (m = mons; m->next != selmon; m = m->next);
 	return m;
 }
+
 void
-str_replace(const char* str, const char* substring, const char* replacement) {
+str_replace(char* str, const char* substring, const char* replacement) {
 
-	char* _substr = strstr(str, substring);
+	char* pos = strstr(str, substring);
 
-	if (_substr == NULL && strcmp(substring, replacement) == 0)
-		return;
+	if (pos == NULL) return;
 
-	sprintf(_substr, "%s%s", replacement, _substr + strlen(substring));
+	size_t sub_len = strlen(substring);
+	size_t replace_len = strlen(replacement);
+	size_t rest_len = strlen(pos + sub_len);
+
+	// memmove is safe for overlapping memory
+	memmove(pos + replace_len, pos + sub_len, rest_len + 1);
+
+	memcpy(pos, replacement, replace_len);
 }
 
 void
@@ -988,23 +995,16 @@ drawbar(Monitor *m)
 
 		// Draw title in the remaining width
 		if ((w = m->ww - tw - x) > bh) {
-			char title[strlen(m->sel->name)+3];
-			memset(title,'\0', sizeof(title)+3);
-			memcpy(title+1, m->sel->name, strlen(m->sel->name));
+			/* char title[strlen(m->sel->name)+3]; */
+			char title[1024];
+			memset(title,'\0', sizeof(title));
+			unsigned int titlelen = strlen(m->sel->name);
+			// Make sure to copy above the allowed array size.
+			memcpy(title+1, m->sel->name, titlelen < sizeof(title)? titlelen : sizeof(title));
 			title[0] = ' ';
 			title[strlen(title)] = ' ';
-			char toHide[] = " — LibreWolf";
-			char *result = strstr(title, toHide);
-			if (result) {
-				sprintf(result, "%s%s", "", result + strlen(toHide));
-			}else{
-				//If still no, then try to remove this word instead.
-				char toHide[] = " LibreWolf";
-				result = strstr(title, toHide);
-				if (result) {
-					sprintf(result, "%s%s", "", result + strlen(toHide));
-				}
-			}
+			str_replace(title, " — LibreWolf", "");
+			str_replace(title," LibreWolf", "");
 
 			// Check if there is a need to have a progress indicator. We do that by
 			// checking whether is a percentage expression, e.g. 55%, in the title.
