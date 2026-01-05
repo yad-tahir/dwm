@@ -860,6 +860,14 @@ str_replace(char* str, const char* substring, const char* replacement) {
 }
 
 void
+title_filter(char* title) {
+	unsigned int i;
+	for (i=0; i < sizeof(title_filters) / sizeof(title_filters[0]); i++) {
+		str_replace(title, title_filters[i], "");
+	}
+}
+
+void
 drawbar(Monitor *m)
 {
 	int x = 0, w = 0, tw = 0, n = 0, scm;
@@ -1000,8 +1008,7 @@ drawbar(Monitor *m)
 			memcpy(title+1, m->sel->name, titlelen < sizeof(title)? titlelen : sizeof(title));
 			title[0] = ' ';
 			title[strlen(title)] = ' ';
-			str_replace(title, " — LibreWolf", "");
-			str_replace(title," LibreWolf", "");
+			title_filter(title);
 
 			// Check if there is a need to have a progress indicator. We do that by
 			// checking whether is a percentage expression, e.g. 55%, in the title.
