@@ -70,7 +70,7 @@ enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
 // The order of the colors must match the order of their use in config.def.h.
 // Otherwise, it will break the coloring of the status part
 enum { Color0, Color1, Color2, Color3, Color4, Color5,
-	   Color6, Color7, Color8, Color9, Color10, Color11}; /* color schemes */
+	   Color6, Color7, Color8, Color9, Color10, Color11, Color12}; /* color schemes */
 enum { NetSupported, NetWMName, NetWMPID, NetWMState, NetWMCheck,
 	   NetWMFullscreen, NetActiveWindow, NetWMWindowType,
 	   NetWMWindowTypeDialog, NetClientList, NetLast }; /* EWMH atoms */
@@ -129,6 +129,7 @@ typedef struct {
 typedef struct {
 	const char *symbol;
 	void (*arrange)(Monitor *);
+	unsigned int mono_focus;
 } Layout;
 
 typedef struct Pertag Pertag;
@@ -253,6 +254,7 @@ static void spawn(const Arg *arg);
 static void stickyClient(const Arg *arg);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
+static void tagmonfollow(const Arg *arg);
 static void tocenter(const Arg *arg);
 static void togglebar(const Arg *arg);
 static void togglefloating(const Arg *arg);
@@ -331,7 +333,6 @@ struct Pertag {
 	float mfacts[LENGTH(tags) + 1]; /* mfacts per tag */
 	unsigned int sellts[LENGTH(tags) + 1]; /* selected layouts */
 	const Layout *ltidxs[LENGTH(tags) + 1][2]; /* matrix of tags and layouts indexes */
-	int showbars[LENGTH(tags) + 1]; /* display bar for the current tag */
 	unsigned int stickies[LENGTH(tags) + 1]; /* number of sticky clients per tag */
 };
 
@@ -765,8 +766,6 @@ createmon(void)
 		m->pertag->ltidxs[i][0] = m->lt[0];
 		m->pertag->ltidxs[i][1] = m->lt[1];
 		m->pertag->sellts[i] = m->sellt;
-
-		m->pertag->showbars[i] = m->showbar;
 	}
 
 	return m;
@@ -837,6 +836,16 @@ dirtomon(int dir)
 		for (m = mons; m->next != selmon; m = m->next);
 	return m;
 }
+void
+str_replace(const char* str, const char* substring, const char* replacement) {
+
+	char* _substr = strstr(str, substring);
+
+	if (_substr == NULL && strcmp(substring, replacement) == 0)
+		return;
+
+	sprintf(_substr, "%s%s", replacement, _substr + strlen(substring));
+}
 
 void
 drawbar(Monitor *m)
@@ -856,29 +865,6 @@ drawbar(Monitor *m)
 
 	int boxs = drw->fonts->h / 9;
 	int boxw = drw->fonts->h / 6 + 2;
-
-
-	/* draw status first so it can be overdrawn by tags later */
-	if (m == selmon || unhiden_statusbar) {
-		drw_setscheme(drw, scheme[Color0]);
-		tw = stextw + 2; /* 2px right padding */
-		// To add color support, we need a loop to parse stext
-		char *ts = stext;
-		char *tp = stext;
-		int tx = 0;
-		char ctmp;
-		while (1) {
-			if ((unsigned int)*ts > LENGTH(colors)) { ts++; continue; }
-			ctmp = *ts;
-			*ts = '\0';
-			drw_text(drw, m->ww - tw + tx, 0, tw - tx, bh, 0, tp, 0);
-			tx += TEXTW(tp) - lrpad;
-			if (ctmp == '\0') { break; }
-			drw_setscheme(drw, scheme[(unsigned int)(ctmp-1)]);
-			*ts = ctmp;
-			tp = ++ts;
-		}
-	}
 
 	for (c = m->clients; c; c = c->next) {
 		if (ISVISIBLE(c))
@@ -927,10 +913,10 @@ drawbar(Monitor *m)
 		if (n > 0) {
 			for (c = m->clients; c; c = c->next) {
 				if (!ISVISIBLE(c)) continue;
-				if (m->sel == c) scm = Color1;
-				else if (HIDDEN(c)) scm = Color5;
-				else if (ISSKIP(c)) scm = Color4;
-				else if (ISSTICKY(m, c)) scm = Color3;
+				if (m->sel == c) scm = Color12;
+				else if (HIDDEN(c)) scm =Color5;
+				else if (ISSKIP(c)) scm =Color4;
+				else if (ISSTICKY(m, c)) scm =Color3;
 				else scm = Color9;
 				drw_setscheme(drw, scheme[scm]);
 				x = drw_text(drw, x, (bh - drw->fonts->h) / 2,
@@ -953,105 +939,158 @@ drawbar(Monitor *m)
 		x += lrpad/2;
 	}
 
-	if (m->sel == NULL) {
-		drw_map(drw, m->barwin, 0, 0, m->ww, bh);
-		return;
-	}
+	//If a window is selected, then draw its metadata.
+	if (m->sel != NULL) {
 
-	// Draw window flags
-	if ((m->ww - tw - x) > bh && ISLOCKED(m->sel)) {
-		w = TEXTW("LOCKED");
-		drw_setscheme(drw, scheme[Color5]);
-		x = drw_text(drw, x, 0, w, bh, lrpad / 2, "LOCKED", 0);
-		x += lrpad/2;
-	}
-
-	if ((m->ww - tw - x) > bh && ISSTICKY(m, m->sel)) {
-		w = TEXTW("STICKY");
-		drw_setscheme(drw, scheme[Color3]);
-		x = drw_text(drw, x, 0, w, bh, lrpad / 2, "STICKY", 0);
-		x += lrpad/2;
-	}
-
-	if ((m->ww - tw - x) > bh && ISSKIP(m->sel)) {
-		w = TEXTW("SKIP");
-		drw_setscheme(drw, scheme[Color4]);
-		x = drw_text(drw, x, 0, w, bh, lrpad / 2, "SKIP", 0);
-		x += lrpad/2;
-	}
-
-	if ((m->ww - tw - x) > bh && ISLAST(m->sel)) {
-		w = TEXTW("LAST");
-		drw_setscheme(drw, scheme[Color9]);
-		x = drw_text(drw, x, 0, w, bh, lrpad / 2, "LAST", 0);
-		x += lrpad/2;
-	}
-
-	if ((m->ww - tw - x) > bh && ISFLOATING(m->sel)) {
-		w = TEXTW("FLOATING");
-		drw_setscheme(drw, scheme[Color6]);
-		x = drw_text(drw, x, 0, w, bh, lrpad / 2, "FLOATING", 0);
-		x += lrpad/2;
-	}
-
-	// Draw title in the remaining width
-	if ((w = m->ww - tw - x) > bh) {
-		// Check if there is a need to have a progress indicator. We do that by
-		// checking whether is a percentage expression, e.g. 55%, in the title.
-		regmatch_t matches[2];
-		if (regexec(&regex, m->sel->name, 1, matches, 0)) {
-			// Disable Scheme select as we already implemented in tags
-			drw_setscheme(drw, scheme[Color0]);
-			w = TEXTW(m->sel->name);
-			drw_text(drw, x, 0, w, bh, lrpad / 2, m->sel->name, 0);
-		} else {
-			// Draw a progress indicator by highlighting characters in the title
-			// Add space padding
-			char title[strlen(m->sel->name)+3];
-			memset(title,'\0', sizeof(title));
-			memcpy(title+1, m->sel->name, strlen(m->sel->name));
-			title[0] = title[strlen(m->sel->name)+1] =' ';
-
-			//Get the percentage, which has the following expression [[:digit]]{1,3}%
-			char tmp[sizeof(title)];
-			for (i=(strlen(title)-1); i>=0; i--)
-				if (title[i]=='%')
-					break;
-			int pos1 = i;
-			// Find the last space after %
-			for (i=pos1; i>=0; i--)
-				if (title[i]==' ')
-					break;
-			int pos2 = i;
-			memset(tmp,'\0', sizeof(tmp));
-			memcpy(tmp, title+pos2,
-				   pos1-pos2 > sizeof(tmp)-1 ? sizeof(tmp)-1: pos1-pos2);
-			float per= atoi(tmp) * 0.01;
-
-			// From the percentage, find how many characters needs to be highlighted
-			int numChar= (strlen(title)) * per;
-
-			//Start drawing
-			memset(tmp,'\0',sizeof(tmp));
-			memcpy(tmp, title, sizeof(title));
-			w = TEXTW(tmp) - lrpad;
-			drw_setscheme(drw, scheme[Color0]);
-			int end = drw_text(drw, x, 0, w, bh, 0, tmp, 0);
-
-			if (numChar>0 && numChar <= strlen(title)) {
-				// Highlighted part
-				drw_setscheme(drw, scheme[Color1]);
-				memset(tmp,'\0',sizeof(tmp));
-				memcpy(tmp, title, numChar);
-				w = TEXTW(tmp) - lrpad;
-				x = drw_text(drw, x, 0, w, bh, 0, tmp, 0);
-			}
-			x = end;
+		// Draw window flags
+		if ((m->ww - tw - x) > bh && ISLOCKED(m->sel)) {
+			w = TEXTW("LOCKED");
+			drw_setscheme(drw, scheme[Color5]);
+			x = drw_text(drw, x, 0, w, bh, lrpad / 2, "LOCKED", 0);
+			x += lrpad/2;
 		}
-	} else {
-		drw_setscheme(drw, scheme[Color0]);
-		drw_rect(drw, x, 0, w, bh, 1, 1);
+
+		if ((m->ww - tw - x) > bh && ISSTICKY(m, m->sel)) {
+			w = TEXTW("STICKY");
+			drw_setscheme(drw, scheme[Color3]);
+			x = drw_text(drw, x, 0, w, bh, lrpad / 2, "STICKY", 0);
+			x += lrpad/2;
+		}
+
+		if ((m->ww - tw - x) > bh && ISSKIP(m->sel)) {
+			w = TEXTW("SKIP");
+			drw_setscheme(drw, scheme[Color4]);
+			x = drw_text(drw, x, 0, w, bh, lrpad / 2, "SKIP", 0);
+			x += lrpad/2;
+		}
+
+		if ((m->ww - tw - x) > bh && ISLAST(m->sel)) {
+			w = TEXTW("LAST");
+			drw_setscheme(drw, scheme[Color9]);
+			x = drw_text(drw, x, 0, w, bh, lrpad / 2, "LAST", 0);
+			x += lrpad/2;
+		}
+
+		if ((m->ww - tw - x) > bh && ISFLOATING(m->sel)) {
+			w = TEXTW("FLOATING");
+			drw_setscheme(drw, scheme[Color6]);
+			x = drw_text(drw, x, 0, w, bh, lrpad / 2, "FLOATING", 0);
+			x += lrpad/2;
+		}
+
+		// Draw title in the remaining width
+		if ((w = m->ww - tw - x) > bh) {
+			char title[strlen(m->sel->name)+3];
+			memset(title,'\0', sizeof(title)+3);
+			memcpy(title+1, m->sel->name, strlen(m->sel->name));
+			title[0] = ' ';
+			title[strlen(title)] = ' ';
+			char toHide[] = " — LibreWolf";
+			char *result = strstr(title, toHide);
+			if (result) {
+				sprintf(result, "%s%s", "", result + strlen(toHide));
+			}else{
+				//If still no, then try to remove this word instead.
+				char toHide[] = " LibreWolf";
+				result = strstr(title, toHide);
+				if (result) {
+					sprintf(result, "%s%s", "", result + strlen(toHide));
+				}
+			}
+
+			// Check if there is a need to have a progress indicator. We do that by
+			// checking whether is a percentage expression, e.g. 55%, in the title.
+			regmatch_t matches[2];
+			if (regexec(&regex, title, 1, matches, 0)) {
+				// Disable Scheme select as we already implemented in tags
+				drw_setscheme(drw, scheme[Color0]);
+				w = TEXTW(title+1);
+				drw_text(drw, x, 0, w, bh, lrpad / 2, title+1, 0);
+			} else {
+				// Draw a progress indicator by highlighting characters in the title
+				// Add space padding
+				//char curTitle[strlCen(title)+3];
+				//memset(curTitle,'\0', sizeof(title));
+				//memcpy(curTitle+1, m->sel->name, strlen(m->sel->name));
+				//curTitle[0] = curTitle[strlen(title)+1] =' ';
+				//char* title = curTitle;
+
+				//Get the percentage, which has the following expression [[:digit]]{1,3}%
+				char tmp[sizeof(title)];
+				for (i=(strlen(title)-1); i>=0; i--)
+					if (title[i]=='%') break;
+				int pos1 = i;
+				// Find the last space before %
+				for (i=pos1; i>=0; i--)
+					if (title[i]==' ') break;
+				int pos2 = i;
+				memset(tmp,'\0', sizeof(tmp));
+				memcpy(tmp, title+pos2,
+						pos1-pos2 > sizeof(tmp)-1 ? sizeof(tmp)-1: pos1-pos2);
+				float per= atoi(tmp) * 0.01;
+
+				//Remove the percentage from the title
+				if(per >= 0 && pos2 < sizeof(tmp) && sizeof(tmp) > 5){
+					title[pos2] = '\0';
+					if(title[pos2-1] == '-')
+						title[pos2-1] = '\0';
+					int last_char_idx = strlen(title)-1;
+					if(title[last_char_idx] != ' '){
+						title[last_char_idx+1] = ' ';
+						title[last_char_idx+2] = '\0';
+					}
+				}
+
+				// From the percentage, find how many characters needs to be highlighted
+				int numChar= (strlen(title)) * per;
+
+				//Start drawing
+				memset(tmp,'\0',sizeof(tmp));
+				memcpy(tmp, title, sizeof(title));
+				w = TEXTW(tmp) - lrpad;
+				drw_setscheme(drw, scheme[Color0]);
+				int end = drw_text(drw, x, 0, w, bh, 0, tmp, 0);
+
+				if (numChar>0 && numChar <= strlen(title)) {
+					// Highlighted part
+					drw_setscheme(drw, scheme[Color1]);
+					memset(tmp,'\0',sizeof(tmp));
+					memcpy(tmp, title, numChar);
+					w = TEXTW(tmp) - lrpad;
+					x = drw_text(drw, x, 0, w, bh, 0, tmp, 0);
+				}
+				x = end;
+			}
+	  } else {
+			drw_setscheme(drw, scheme[Color0]);
+			drw_rect(drw, x, 0, w, bh, 1, 1);
+	  }
+	}else{
+		drw_map(drw, m->barwin, 0, 0, m->ww, bh);
 	}
+
+	/* draw status first so it can be overdrawn by tags later */
+	if (m == selmon || unhiden_statusbar) {
+		drw_setscheme(drw, scheme[Color0]);
+		tw = stextw + 2; /* 2px right padding */
+		// To add color support, we need a loop to parse stext
+		char *ts = stext;
+		char *tp = stext;
+		int tx = 0;
+		char ctmp;
+		while (1) {
+			if ((unsigned int)*ts > LENGTH(colors)) { ts++; continue; }
+			ctmp = *ts;
+			*ts = '\0';
+			drw_text(drw, m->ww - tw + tx, 0, tw - tx, bh, 0, tp, 0);
+			tx += TEXTW(tp) - lrpad;
+			if (ctmp == '\0') { break; }
+			drw_setscheme(drw, scheme[(unsigned int)(ctmp-1)]);
+			*ts = ctmp;
+			tp = ++ts;
+		}
+	}
+
 	drw_map(drw, m->barwin, 0, 0, m->ww, bh);
 }
 
@@ -1207,32 +1246,56 @@ void
 focusstack(const Arg *arg)
 {
 	Client *c = NULL, *i;
+	unsigned int mono_focus = 0, dir_right;
 
 	if (!selmon->sel || (selmon->sel->isfullscreen && lockfullscreen))
 		return;
 
+	if(selmon->lt[selmon->sellt]){
+	  mono_focus = selmon->lt[selmon->sellt]->mono_focus;
+	}
 	// Check whether to avoid skip clients or not. If the passed parameter is
 	// equal to 1 or -1, then jumps over skip clients. Otherwise, act like the
 	// normal focusstack function.
 	int avoidSkip = arg->i > 0? arg->i == 1: arg->i == -1;
-	if (arg->i > 0) {
-		if (selmon->sel)
-			for (c = selmon->sel->next; c && (!ISVISIBLE(c) || (ISSKIP(c) & avoidSkip)); c = c->next);
-		if (!c)
+	dir_right = arg->i > 0;
+
+	if (dir_right) {
+		for (c = selmon->sel->next; c && (!ISVISIBLE(c) || (ISSKIP(c) & avoidSkip)); c = c->next);
+		if (!c){
 			for (c = selmon->clients; c && (!ISVISIBLE(c) || (ISSKIP(c) & avoidSkip)); c = c->next);
+		}
 	} else {
-			for (i = selmon->clients; i != selmon->sel; i = i->next)
-				if (i && ISVISIBLE(i) && !(ISSKIP(i) & avoidSkip))
-					c = i;
-		if (!c)
+		for (i = selmon->clients; i != selmon->sel; i = i->next)
+			if (i && ISVISIBLE(i) && !(ISSKIP(i) & avoidSkip))
+				c = i;
+		if (!c && !(mono_focus && selmon->nmaster > 0))
 			for (; i; i = i->next)
 				if (ISVISIBLE(i) && !(ISSKIP(i) & avoidSkip))
 					c = i;
 	}
 	if (c) {
-		focus(c);
+		// On mono_master focus, the clients in the nmaster zone must remain the same while we are moving towards right.
+		if(mono_focus && dir_right && selmon->nmaster > 0) {
+
+			// Get the position of the current focused client
+			unsigned int n =0;
+			for (n = 0, i = nexttiled(selmon->clients); i && i != selmon->sel; i = nexttiled(i->next), n++);
+
+			// Jump to the last client in the nmaster zone when focus direction is going towards Left.
+			if(n >= selmon->nmaster){
+			  Arg args;
+			  args.i = +1;
+			  inplacerotate(&args);
+			} else {
+			  focus(c);
+			}
+		}else{
+			focus(c);
+		}
 	}
 }
+
 
 Atom
 getatomprop(Client *c, Atom prop)
@@ -1971,7 +2034,8 @@ rotatestack(const Arg *arg)
 			selmon->stickies = numStickies;
 		}
 		arrange(selmon);
-		focus(f);
+
+		focus(c);
 	}
 }
 
@@ -2342,6 +2406,12 @@ tagmon(const Arg *arg)
 }
 
 void
+tagmonfollow(const Arg *arg){
+  tagmon(arg);
+  focusmon(arg);
+}
+
+void
 tocenter(const Arg *arg)
 {
 	if (!selmon->sel)
@@ -2369,7 +2439,7 @@ tocenter(const Arg *arg)
 void
 togglebar(const Arg *arg)
 {
-	selmon->showbar = selmon->pertag->showbars[selmon->pertag->curtag] = !selmon->showbar;
+	selmon->showbar  = !selmon->showbar;
 	updatebarpos(selmon);
 	XMoveResizeWindow(dpy, selmon->barwin, selmon->wx, selmon->by, selmon->ww, bh);
 	arrange(selmon);
@@ -2469,9 +2539,6 @@ toggleview(const Arg *arg)
 		selmon->pertag->stickies[selmon->pertag->prevtag] = selmon->stickies;
 		selmon->stickies = selmon->pertag->stickies[selmon->pertag->curtag];
 
-		if (selmon->showbar != selmon->pertag->showbars[selmon->pertag->curtag])
-			togglebar(NULL);
-
 		focus(NULL);
 		arrange(selmon);
 	}
@@ -2509,6 +2576,13 @@ unmanage(Client *c, int destroyed)
 {
 	Monitor *m = c->mon;
 	XWindowChanges wc;
+	unsigned int c_idx = 0;
+	Client *d;
+
+	if (selmon->lt[selmon->sellt]->mono_focus) {
+		// Find the location of the client
+		for (c_idx = 0, d = selmon->clients; d && d != c; d = nexttiled(d->next), c_idx++);
+	}
 
 	detach(c);
 	detachstack(c);
@@ -2525,8 +2599,25 @@ unmanage(Client *c, int destroyed)
 	}
 	free(c->pertag);
 	free(c);
-	focus(NULL);
 	updateclientlist();
+
+	// In mono focus, if we are in non-nmaster zone, then next focus should remain in nmaster zone.
+	// This will avoid manually moving the focus back to non-nmaster clients when we are trying to kill a few
+	// nonmaster clients quickly.
+	if (selmon->lt[selmon->sellt]->mono_focus && c_idx >= selmon->nmaster) {
+		unsigned int i = 0;
+
+		for (i = 0, d = selmon->clients; d && i < selmon->nmaster; d = nexttiled(d->next), i++);
+
+		if (i) {
+			focus(d);
+		} else {
+			focus(NULL);
+		}
+	} else {
+		focus(NULL);
+	}
+
 	arrange(m);
 }
 
@@ -2924,9 +3015,6 @@ view(const Arg *arg)
 	selmon->pertag->stickies[selmon->pertag->prevtag] = selmon->stickies;
 	selmon->stickies = selmon->pertag->stickies[selmon->pertag->curtag];
 
-	if (selmon->showbar != selmon->pertag->showbars[selmon->pertag->curtag])
-		togglebar(NULL);
-
 	focus(NULL);
 	arrange(selmon);
 }
@@ -3013,7 +3101,7 @@ zoom(const Arg *arg)
 			return;
 	// If the force flag is on, then move it the last sticky master
 	int v = c->mon->stickies;
-	if (arg->i && v) {
+	if (arg && arg->i && v) {
 		c->mon->stickies = 0;
 		updatesticky(c->mon);
 		pop(c);
@@ -3029,6 +3117,7 @@ zoom(const Arg *arg)
 		focus(old);
 	}
 
+	arrange(selmon);
 	drawbar(c->mon);
 }
 

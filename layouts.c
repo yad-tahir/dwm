@@ -33,24 +33,72 @@ tile(Monitor *m)
 		}
 }
 
-void
-monocle(Monitor *m)
-{
-	unsigned int n = 0;
-	Client *c;
-
-	for (c = m->clients; c; c = c->next)
-		if (ISVISIBLE(c))
-			n++;
-	if (n > 0) /* override layout symbol */
-		snprintf(m->ltsymbol, sizeof m->ltsymbol, "[%d]", n);
-	for (c = nexttiled(m->clients); c; c = nexttiled(c->next))
-		resize(c, m->wx, m->wy, m->ww - 2 * c->bw, m->wh - 2 * c->bw, 0);
-}
 
 Bool isPortrait(Monitor *m)
 {
 	return m->mw < m->mh;
+}
+
+void
+monocle(Monitor *m)
+{
+	unsigned int i, // current client index
+	n, // number of tiled win
+	h, w, x, y,
+	mw, mh; // master area
+	Client *c;
+
+	// Calculate the number of tiled clients
+	for (n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++);
+
+	if (n == 0)
+		return;
+
+	if (n > m->nmaster) {
+		mw = m->nmaster ? m->ww * m->mfact : 0;
+		mh = m->nmaster ? m->wh * m->mfact : 0;
+	} else {
+		// when there are no masters
+		mw = m->ww;
+		mh = m->wh;
+	}
+
+	int overlap = nexttiled(m->clients)->bw;
+	for (i = x = y = h = w = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), i++) {
+
+		if (i < m->nmaster) {
+		  // Check if the sceen is in portrait mode
+		  if (!isPortrait(m)) {
+			w = (mw - x) / (MIN(n, m->nmaster)-i);
+			resize(c, x + m->wx, m->wy,
+				   w - (2*c->bw) + overlap, m->wh - (2*c->bw), False);
+			x += WIDTH(c) - overlap;
+		  } else{
+			h = (mh - y) / (MIN(n, m->nmaster)-i);
+			resize(c, m->wx, y + m->wy,
+				   m->ww - (2*c->bw), h - (2*c->bw) + overlap, False);
+			y += HEIGHT(c) - overlap;
+		  }
+		}else{
+			// The var j is introduced so that the number of masters does not
+			// affect slaves are drawn
+			int j = i - m->nmaster;
+
+			// Calculate the remaining dimension for the slaves
+			if (j == 0) {
+				w = m->ww - x;
+				h = m->wh - y;
+			}
+
+			if (!isPortrait(m)) {
+			  resize(c, x + m->wx, m->wy,
+				   w - (2*c->bw) + overlap, m->wh - (2*c->bw), False);
+			} else{
+			  resize(c, m->wx, y + m->wy,
+				   m->ww - (2*c->bw), h - (2*c->bw) + overlap, False);
+			}
+		}
+	}
 }
 
 void

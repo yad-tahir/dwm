@@ -19,28 +19,22 @@ static const int unhiden_statusbar  = 1;       /*  shows status bar on all monit
 static const char *colors[][2]      = {
 	/*             fg         bg       */
 	[Color0]  = { "#e6beae", "#000000" },
-	[Color1]  = { "#000000", "rgb:fff/000/fff" },
+	[Color1]  = { "#e6beae", "#392626" }, //progress bar
 	[Color2]  = { "#654d4d", "#000000" },
-	[Color3]  = { "#000000", "#00ffff" },
-	[Color4]  = { "#000000", "#ffa500" },
-	[Color5]  = { "#000000", "#ff6347" },
+	[Color3]  = { "#000000", "#99ffaa" }, //info
+	[Color4]  = { "#000000", "#ffa500" }, //critical
+	[Color5]  = { "#000000", "#ff6347" }, //error
 	[Color6]  = { "#e6beae", "#392626" },
-	[Color7]  = { "#000000", "#a7e23e" },
+	[Color7]  = { "#000000", "#856d6d" },
 	[Color8]  = { "#00ffff", "#000000" },
 	[Color9]  = { "#ffffff", "#292121" },
 	[Color10] = { "#000000", "#e6beae" },
-
-	// BUG-FIX: When the screen operates in 10-bit mode, the border color of
-	// some application will be computed in 10-bit while others in 8 bit. For
-	// example, for the color 1111 1111 1111, the border will be either
-	// 11(11 1111 1111) or 1111 (1111 1111). Thus, the only viable color
-	// is black, as well as these perceivably similar colors white,
-	// red, cyan, green, magenta, yellow and blue.
-	[Color11] = { "rgb:fff/00/fff", "#000000" },
+	[Color11] = { "#7a3cec", "#000000" }, //win boarder
+	[Color12] = { "#000000", "#7a3cec" }, //stack indicator
 };
 
 /* tagging */
-static const char *tags[] = { "", "", "", "" , "", "", "", "", ""};
+static const char *tags[] = { "", "", "", "", ""};
 
 static const Rule rules[] = {
 	/* xprop(1):
@@ -51,7 +45,7 @@ static const Rule rules[] = {
 	{ "URxvt",    "htop",        NULL, 0,        0,         0,       1,     0,         0,   0,    -1 },
 	{ "URxvt",    "log",         NULL, 0,        0,         0,       1,     0,         0,   0,    -1 },
 	{ "URxvt",    "pulsemixer",  NULL, 0,        1,         0,       0,     1,         0,   0,    -1 },
-	{ "Zathura",  NULL,          NULL, 1 << 3,   0,         0,       1,     0,         0,   0,     1 },
+	//{ "Zathura",  NULL,          NULL, 1 << 3,   0,         0,       1,     0,         0,   0,     1 },
 };
 
 /* layout(s) */
@@ -61,12 +55,13 @@ static const int resizehints = 0;    /* 1 means respect size hints in tiled resi
 static const int lockfullscreen = 0; /* 1 will force focus on the fullscreen window */
 
 static const Layout layouts[] = {
-	/* symbol     arrange function */
-	{ "[@]",      spiral }, /* first entry is default */
-	{ "[F]",      monocle },
-	{ "[\\]",     dwindle },
-	{ "[+]",      grid },
-	{ "><>",      NULL },    /* no layout function means floating behavior */
+	/* symbol     arrange function        mono focus */
+	{ "[@]",      spiral                  , 0 }, /* first entry is default */
+	{ "[F]",      monocle                 , 1 },
+	{ "[@']",     spiral                  , 1 },
+	{ "[\\]",     dwindle                 , 0 },
+	{ "[+]",      grid                    , 0 },
+	{ "><>",      NULL                    , 0 },    /* no layout function means floating behavior */
 };
 
 /* key definitions */
@@ -107,6 +102,8 @@ static Key keys[] = {
 	{ MODKEY,                       XK_t,      focusmon,            {.i = +1 } },
 	{ MODKEY|ControlMask,           XK_c,      tagmon,              {.i = -1 } },
 	{ MODKEY|ControlMask,           XK_t,      tagmon,              {.i = +1 } },
+	{ MODKEY|ShiftMask,             XK_c,      tagmonfollow,        {.i = -1 } },
+	{ MODKEY|ShiftMask,             XK_t,      tagmonfollow,        {.i = +1 } },
 
 	{ MODKEY,                       XK_Up,     incnmaster,          {.i = +1 } },
 	{ MODKEY,                       XK_Down,   incnmaster,          {.i = -1 } },
@@ -138,10 +135,10 @@ static Key keys[] = {
 	TAGKEYS(                        XK_3,                           2)
 	TAGKEYS(                        XK_4,                           3)
 	TAGKEYS(                        XK_5,                           4)
-	TAGKEYS(                        XK_6,                           5)
-	TAGKEYS(                        XK_7,                           6)
-	TAGKEYS(                        XK_8,                           7)
-	TAGKEYS(                        XK_9,                           8)
+	/* TAGKEYS(                        XK_6,                           5) */
+	/* TAGKEYS(                        XK_7,                           6) */
+	/* TAGKEYS(                        XK_8,                           7) */
+	/* TAGKEYS(                        XK_9,                           8) */
 
 	{ MODKEY,                       XK_q,      killclient,          {0} },
 	{ MODKEY|ShiftMask,             XK_q,      killforceclient,     {0} },
