@@ -52,7 +52,6 @@
 							   * MAX(0, MIN((y)+(h),(m)->wy+(m)->wh) - MAX((y),(m)->wy)))
 #define ISVISIBLE(C)            ((C->tags & C->mon->tagset[C->mon->seltags]))
 #define HIDDEN(C)               ((getstate(C->win) == IconicState))
-#define LENGTH(X)               (sizeof X / sizeof X[0])
 #define MOUSEMASK               (BUTTONMASK|PointerMotionMask)
 #define WIDTH(X)                ((X)->w + 2 * (X)->bw)
 #define HEIGHT(X)               ((X)->h + 2 * (X)->bw)
@@ -424,10 +423,10 @@ applysizehints(Client *c, int *x, int *y, int *w, int *h, int interact)
 
 	// If the tiled window's dimensions exceeds the monitor working area,
 	// then resize it to fit
-	if(!ISFLOATING(c) && ISVISIBLE(c) && !HIDDEN(c)){
-		if(*x + *w + 2*c->bw > c->mon->wx + c->mon->ww)
+	if (!ISFLOATING(c) && ISVISIBLE(c) && !HIDDEN(c)) {
+		if (*x + *w + 2*c->bw > c->mon->wx + c->mon->ww)
 			*w = c->mon->wx + c->mon->ww - *x - 2*c->bw;
-		if(*y + *h + 2*c->bw > c->mon->wy + c->mon->wh)
+		if (*y + *h + 2*c->bw > c->mon->wy + c->mon->wh)
 			*h = c->mon->wy + c->mon->wh - *y - 2*c->bw;
 	}
 
@@ -2698,7 +2697,7 @@ updatebarpos(Monitor *m)
 }
 
 void
-updateclientlist()
+updateclientlist(void)
 {
 	Client *c;
 	Monitor *m;
