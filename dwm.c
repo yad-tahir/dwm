@@ -2550,7 +2550,7 @@ unmanage(Client *c, int destroyed)
 
 	if (selmon->lt[selmon->sellt]->mono_focus) {
 		// Find the location of the client
-		for (c_idx = 0, d = selmon->clients; d && d != c; d = nexttiled(d->next), c_idx++);
+		for (c_idx = 0, d = nexttiled(selmon->clients); d && d != c; d = nexttiled(d->next), c_idx++);
 	}
 
 	detach(c);
@@ -2577,7 +2577,7 @@ unmanage(Client *c, int destroyed)
 	if (selmon->lt[selmon->sellt]->mono_focus && c_idx >= selmon->nmaster) {
 		unsigned int i = 0;
 
-		for (i = 0, d = selmon->clients; d && i < selmon->nmaster; d = nexttiled(d->next), i++);
+		for (i = 0, d = nexttiled(selmon->clients); d && i < selmon->nmaster; d = nexttiled(d->next), i++);
 
 		if (i) {
 			focus(d);
