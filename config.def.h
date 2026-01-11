@@ -34,7 +34,7 @@ static const char *colors[][2]      = {
 };
 
 /* tagging */
-static const char *tags[] = { "", "", "", "", ""};
+static const char *tags[] = { "", "", "", "", "", "", ""};
 
 static const char *title_filters[] = { " — LibreWolf", " LibreWolf",
 									   " — Mozilla Firefox", " Mozilla Firefox" };
@@ -138,8 +138,8 @@ static Key keys[] = {
 	TAGKEYS(                        XK_3,                           2)
 	TAGKEYS(                        XK_4,                           3)
 	TAGKEYS(                        XK_5,                           4)
-	/* TAGKEYS(                        XK_6,                           5) */
-	/* TAGKEYS(                        XK_7,                           6) */
+	TAGKEYS(                        XK_6,                           5)
+	TAGKEYS(                        XK_7,                           6)
 	/* TAGKEYS(                        XK_8,                           7) */
 	/* TAGKEYS(                        XK_9,                           8) */
 
