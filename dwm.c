@@ -914,11 +914,13 @@ drawbar(Monitor *m)
 	drw_setscheme(drw, scheme[Color8]);
 	x = drw_text(drw, x, 0, w, bh, lrpad / 2, m->ltsymbol, 0);
 	x -= lrpad / 2;
-	char str[11];
-	sprintf(str, "%d", m->nmaster);
-	w = TEXTW(str)- lrpad / 2;
-	drw_setscheme(drw, scheme[Color8]);
-	x = drw_text(drw, x, 0, w, bh, 0, str, 0);
+	if (m->lt[m->sellt]->arrange) {
+		char str[11];
+		sprintf(str, "%d", m->nmaster);
+		w = TEXTW(str)- lrpad / 2;
+		drw_setscheme(drw, scheme[Color8]);
+		x = drw_text(drw, x, 0, w, bh, 0, str, 0);
+	}
 
 	//Reset the dynamic portion of the status bar
 	drw_setscheme(drw, scheme[Color0]);
