@@ -62,7 +62,7 @@ static const Layout layouts[] = {
 	/* symbol     arrange function        mono focus */
 	{ "[@]",      spiral                  , 0 }, /* first entry is default */
 	{ "[F]",      monocle                 , 1 },
-	{ "[@']",     spiral                  , 1 },
+	{ "[#]",      spiral                  , 1 },
 	{ "[\\]",     dwindle                 , 0 },
 	{ "[+]",      grid                    , 0 },
 	{ "><>",      NULL                    , 0 },    /* no layout function means floating behavior */
