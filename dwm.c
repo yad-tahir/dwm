@@ -1321,13 +1321,13 @@ Atom
 getatomprop(Client *c, Atom prop)
 {
 	int di;
-	unsigned long dl;
+	unsigned long nitems, dl;
 	unsigned char *p = NULL;
 	Atom da, atom = None;
 
 	if (XGetWindowProperty(dpy, c->win, prop, 0L, sizeof atom, False, XA_ATOM,
-		&da, &di, &dl, &dl, &p) == Success && p) {
-		if (dl > 0)
+		&da, &di, &nitems, &dl, &p) == Success && p) {
+		if (nitems > 0)
 			atom = *(Atom *)p;
 		XFree(p);
 	}
@@ -2145,12 +2145,10 @@ sendevent(Client *c, Atom proto)
 void
 setfocus(Client *c)
 {
-	if (!c->neverfocus) {
+	if (!c->neverfocus)
 		XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
-		XChangeProperty(dpy, root, netatom[NetActiveWindow],
-			XA_WINDOW, 32, PropModeReplace,
-			(unsigned char *) &(c->win), 1);
-	}
+	XChangeProperty(dpy, root, netatom[NetActiveWindow], XA_WINDOW, 32,
+		PropModeReplace, (unsigned char *)&c->win, 1);
 	sendevent(c, wmatom[WMTakeFocus]);
 }
 
