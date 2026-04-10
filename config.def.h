@@ -36,7 +36,7 @@ static const char *colors[][2]      = {
 static const char *tags[] = { "", "", "", "", "", "", ""};
 
 static const char *title_filters[] = { " — LibreWolf", " LibreWolf",
-									   " — Mozilla Firefox", " Mozilla Firefox" };
+				       " — Mozilla Firefox", " Mozilla Firefox" };
 
 static const Rule rules[] = {
 	/* xprop(1):
