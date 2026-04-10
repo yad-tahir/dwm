@@ -33,8 +33,7 @@ static const char *colors[][2]      = {
 	[Color12] = { "#000000", "#7a3cec" }, //stack indicator
 };
 
-/* tagging */
-static const char *tags[] = { "", "", "", "", "", "", ""};
+static const char *tags[] = { "", "", "", "", "", "", ""};
 
 static const char *title_filters[] = { " — LibreWolf", " LibreWolf",
 									   " — Mozilla Firefox", " Mozilla Firefox" };
